@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Floating Memory Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --pink:   #ff4fd8;
+  --purple: #c86bff;
+  --white:  #ffffff;
+  --bg:     #050505;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100vw; height:100vh; overflow:hidden;
+  background: var(--bg);
+  font-family: 'Great Vibes', cursive;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+body.grabbing { cursor: grabbing; }
+
+/* ── CANVASES ─────────────────────────────── */
+#bg-canvas     { position:fixed; inset:0; z-index:1; pointer-events:none; }
+#flower-canvas { position:fixed; inset:0; z-index:2; pointer-events:none; }
+#particle-canvas { position:fixed; inset:0; z-index:3; pointer-events:none; }
+
+/* ── WORLD ────────────────────────────────── */
+#world {
+  position:fixed; inset:0; z-index:10;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+/* ── MEMORY CARD WRAPPER ──────────────────── */
+.mem-wrap {
+  position:absolute;
+  display:flex; flex-direction:column; align-items:center;
+  animation: cardFloat var(--dur,8s) ease-in-out infinite;
+  animation-delay: var(--delay,0s);
+  cursor:pointer; pointer-events:all;
+}
+
+/* ── MEMORY CARD (image box) ──────────────── */
+.mem-card {
+  border-radius:12px;
+  overflow:hidden;
+  border: 1.5px solid rgba(255,79,216,0.6);
+  box-shadow:
+    0 0 12px rgba(255,79,216,0.5),
+    0 0 30px rgba(255,79,216,0.2),
+    inset 0 0 20px rgba(255,79,216,0.05);
+  transition: transform 0.3s, box-shadow 0.3s;
+  width: 100%;
+}
+.mem-card img { width:100%; height:100%; object-fit:cover; display:block; }
+.mem-wrap:hover .mem-card {
+  box-shadow: 0 0 24px rgba(255,79,216,0.9), 0 0 50px rgba(200,107,255,0.4);
+  transform: scale(1.06);
+}
+
+/* ── CAPTION BELOW CARD ───────────────────── */
+.mem-caption {
+  margin-top: 8px;
+  font-family: 'Great Vibes', cursive;
+  font-size: 20px;
+  color: #ffffff;
+  text-align: center;
+  white-space: nowrap;
+  background: rgba(0,0,0,0.45);
+  padding: 3px 12px 5px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,79,216,0.5);
+  text-shadow:
+    0 0 8px var(--pink),
+    0 0 20px rgba(255,79,216,0.8),
+    0 0 40px rgba(200,107,255,0.5);
+  pointer-events: none;
+  opacity: 1;
+  letter-spacing: 0.03em;
+  transition: all 0.3s;
+  box-shadow: 0 0 10px rgba(255,79,216,0.3);
+}
+.mem-wrap:hover .mem-caption {
+  background: rgba(0,0,0,0.65);
+  border-color: rgba(255,79,216,0.9);
+  box-shadow: 0 0 20px rgba(255,79,216,0.6);
+  text-shadow:
+    0 0 10px #fff,
+    0 0 20px var(--pink),
+    0 0 40px rgba(255,79,216,0.9);
+}
+
+@keyframes cardFloat {
+  0%,100% { transform: translateY(0px) rotate(var(--rot,0deg)); }
+  33%      { transform: translateY(-18px) rotate(calc(var(--rot,0deg) + 1.5deg)); }
+  66%      { transform: translateY(-8px) rotate(calc(var(--rot,0deg) - 1deg)); }
+}
+
+/* ── FLOATING TEXT ────────────────────────── */
+.float-text {
+  position:absolute;
+  font-family:'Great Vibes',cursive;
+  color: var(--pink);
+  white-space: nowrap;
+  pointer-events:none;
+  animation:
+    textFloat var(--dur,10s) ease-in-out infinite,
+    textFade  var(--fdur,6s) ease-in-out infinite;
+  animation-delay: var(--delay,0s), var(--fdelay,0s);
+  text-shadow:
+    0 0 8px var(--pink),
+    0 0 20px rgba(255,79,216,0.6),
+    0 0 40px rgba(200,107,255,0.3);
+}
+@keyframes textFloat {
+  0%,100% { transform: translateY(0px) translateX(0px); }
+  25%      { transform: translateY(-14px) translateX(6px); }
+  75%      { transform: translateY(-6px) translateX(-5px); }
+}
+@keyframes textFade {
+  0%,100% { opacity:0; }
+  15%,85% { opacity:var(--maxalpha,0.85); }
+}
+
+/* ── ORB ──────────────────────────────────── */
+#orb {
+  position:absolute; left:50%; top:50%;
+  transform: translate(-50%,-50%);
+  width:160px; height:160px; border-radius:50%;
+  pointer-events:none;
+  background: radial-gradient(circle at 35% 35%,
+    rgba(255,200,240,0.15), rgba(255,79,216,0.08) 40%,
+    rgba(200,107,255,0.05) 70%, transparent);
+  border: 1px solid rgba(255,79,216,0.25);
+  box-shadow:
+    0 0 40px rgba(255,79,216,0.2),
+    0 0 80px rgba(200,107,255,0.12),
+    0 0 160px rgba(255,79,216,0.06),
+    inset 0 0 40px rgba(255,79,216,0.05);
+  animation: orbPulse 4s ease-in-out infinite;
+}
+@keyframes orbPulse {
+  0%,100% { box-shadow:0 0 40px rgba(255,79,216,0.2),0 0 80px rgba(200,107,255,0.12),inset 0 0 40px rgba(255,79,216,0.05); }
+  50%      { box-shadow:0 0 60px rgba(255,79,216,0.4),0 0 120px rgba(200,107,255,0.22),inset 0 0 60px rgba(255,79,216,0.1); }
+}
+
+/* ── NOTE CARD ────────────────────────────── */
+#note-card {
+  position:fixed; top:70px; left:20px; z-index:8000;
+  max-width:280px; min-width:220px;
+  background:rgba(5,5,5,0.85);
+  border:1px solid rgba(255,79,216,0.3);
+  border-radius:12px; padding:18px 20px;
+  pointer-events:none; opacity:0; transition:opacity 0.8s;
+}
+#note-card.visible { opacity:1; }
+#note-card .from-to { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+#note-card .lbl { font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:0.2em; color:rgba(255,79,216,0.5); text-transform:uppercase; }
+#note-card .val { font-family:'Great Vibes',cursive; font-size:20px; color:#fff; text-shadow:0 0 10px rgba(255,79,216,0.5); margin-top:2px; }
+#note-card .note-lbl { font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:0.2em; color:rgba(255,79,216,0.5); text-transform:uppercase; margin-bottom:6px; }
+#note-card .note-body { font-family:'Great Vibes',cursive; font-size:15px; color:rgba(255,255,255,0.75); line-height:1.6; text-shadow:0 0 8px rgba(255,79,216,0.3); }
+
+/* ── INFO BADGE ───────────────────────────── */
+#info-badge {
+  position:fixed; top:16px; right:16px; z-index:9000;
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:rgba(255,79,216,0.5); letter-spacing:0.12em;
+  text-align:right; line-height:1.8; pointer-events:none;
+}
+#info-badge span { display:block; }
+
+/* ── ZOOM HUD ─────────────────────────────── */
+#zoom-hud {
+  position:fixed; bottom:20px; right:20px; z-index:9000;
+  font-family:'Orbitron',monospace; font-size:10px;
+  color:rgba(255,79,216,0.4); letter-spacing:0.2em; pointer-events:none;
+}
+
+/* ── UPLOAD CARD ──────────────────────────── */
+#upload-card {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:9500; pointer-events:all;
+  background:rgba(5,5,5,0.93);
+  border:1px solid rgba(255,79,216,0.35);
+  border-radius:16px; padding:28px 32px;
+  text-align:center; max-width:420px; width:92%;
+  box-shadow:0 0 40px rgba(255,79,216,0.15),0 0 80px rgba(200,107,255,0.08);
+  transition:opacity 0.6s, transform 0.6s;
+  max-height:90vh; overflow-y:auto;
+}
+#upload-card h1 { font-family:'Great Vibes',cursive; font-size:36px; color:var(--pink); text-shadow:0 0 20px var(--pink); margin-bottom:4px; }
+#upload-card p { font-family:'Share Tech Mono',monospace; font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:0.1em; margin-bottom:18px; }
+
+.field-row { display:flex; flex-direction:column; gap:7px; margin-bottom:12px; text-align:left; }
+.field-row label { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:0.2em; color:rgba(255,79,216,0.7); text-transform:uppercase; }
+.field-row input, .field-row textarea {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,79,216,0.2);
+  border-radius:8px; padding:8px 12px; color:#fff;
+  font-family:'Share Tech Mono',monospace; font-size:11px;
+  outline:none; resize:none; transition:border-color 0.3s;
+}
+.field-row input:focus, .field-row textarea:focus { border-color:rgba(255,79,216,0.6); }
+
+/* Caption inputs section */
+#caption-section {
+  display:none; margin-top:4px;
+  border-top:1px solid rgba(255,79,216,0.15);
+  padding-top:12px;
+}
+#caption-section .sec-title {
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  letter-spacing:0.2em; color:rgba(255,79,216,0.6);
+  text-transform:uppercase; margin-bottom:10px; text-align:left;
+}
+#caption-inputs { display:flex; flex-direction:column; gap:8px; }
+.caption-row {
+  display:flex; align-items:center; gap:8px;
+}
+.caption-row .photo-thumb {
+  width:36px; height:36px; border-radius:6px; object-fit:cover;
+  border:1px solid rgba(255,79,216,0.3); flex-shrink:0;
+}
+.caption-row .photo-num {
+  width:36px; height:36px; border-radius:6px;
+  background:rgba(255,79,216,0.1); border:1px solid rgba(255,79,216,0.3);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',sans-serif; font-size:10px; color:rgba(255,79,216,0.7);
+  flex-shrink:0;
+}
+.caption-row input {
+  flex:1; background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,79,216,0.2); border-radius:8px;
+  padding:7px 11px; color:#fff;
+  font-family:'Great Vibes',cursive; font-size:16px;
+  outline:none; transition:border-color 0.3s;
+}
+.caption-row input::placeholder { font-family:'Share Tech Mono',monospace; font-size:10px; opacity:0.4; }
+.caption-row input:focus { border-color:rgba(255,79,216,0.6); }
+
+#photo-input { display:none; }
+#photo-label {
+  display:block; cursor:pointer; pointer-events:all;
+  border:1px dashed rgba(255,79,216,0.4); border-radius:10px; padding:13px;
+  font-family:'Share Tech Mono',monospace; font-size:10px;
+  color:rgba(255,79,216,0.7); letter-spacing:0.1em;
+  transition:background 0.3s, border-color 0.3s; margin-bottom:14px;
+}
+#photo-label:hover { background:rgba(255,79,216,0.06); border-color:rgba(255,79,216,0.7); }
+
+#launch-btn {
+  width:100%; padding:12px;
+  background:linear-gradient(135deg,rgba(255,79,216,0.2),rgba(200,107,255,0.2));
+  border:1px solid rgba(255,79,216,0.5); border-radius:10px; color:#fff;
+  font-family:'Orbitron',sans-serif; font-size:12px; letter-spacing:0.2em;
+  cursor:pointer; pointer-events:all; transition:all 0.3s; text-transform:uppercase;
+  margin-top:4px;
+}
+#launch-btn:hover {
+  background:linear-gradient(135deg,rgba(255,79,216,0.35),rgba(200,107,255,0.35));
+  box-shadow:0 0 20px rgba(255,79,216,0.3);
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<canvas id="flower-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
+
+<div id="world">
+  <div id="orb"></div>
+</div>
+
+<div id="note-card">
+  <div class="from-to">
+    <div><div class="lbl">FROM</div><div class="val" id="nc-from">—</div></div>
+    <div><div class="lbl">FOR</div><div class="val" id="nc-for">—</div></div>
+  </div>
+  <div class="note-lbl">NOTE</div>
+  <div class="note-body" id="nc-note">—</div>
+</div>
+
+<div id="info-badge">
+  <span>🖱 DRAG TO PAN</span>
+  <span>⚲ SCROLL TO ZOOM</span>
+  <span>📱 PINCH TO ZOOM</span>
+</div>
+<div id="zoom-hud">ZOOM 1.0×</div>
+
+<!-- UPLOAD CARD -->
+<div id="upload-card">
+  <h1>Memory Garden</h1>
+  <p>// UPLOAD PHOTOS · ADD CAPTIONS · LAUNCH //</p>
+
+  <div class="field-row">
+    <label>From</label>
+    <input type="text" id="inp-from" placeholder="Your name" maxlength="40"/>
+  </div>
+  <div class="field-row">
+    <label>For</label>
+    <input type="text" id="inp-for" placeholder="Their name" maxlength="40"/>
+  </div>
+  <div class="field-row">
+    <label>Note</label>
+    <textarea id="inp-note" rows="3" placeholder="Write your message…"></textarea>
+  </div>
+
+  <label id="photo-label" for="photo-input">
+    ✦ TAP TO ADD PHOTOS (optional, multiple) ✦
+  </label>
+  <input type="file" id="photo-input" accept="image/*" multiple/>
+
+  <!-- Caption section — shown after photos selected -->
+  <div id="caption-section">
+    <div class="sec-title">✦ Teks Bawah Foto (Caption)</div>
+    <div id="caption-inputs"></div>
+  </div>
+
+  <button id="launch-btn">Launch Garden ✦</button>
+</div>
+
+<script>
+'use strict';
+
+let W = window.innerWidth, H = window.innerHeight;
+let worldX = 0, worldY = 0, zoom = 1;
+const MIN_ZOOM = 0.4, MAX_ZOOM = 4;
+let photos  = [];   // { src, caption }
+let launched = false;
+
+const world   = document.getElementById('world');
+const zoomHud = document.getElementById('zoom-hud');
+
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx    = bgCanvas.getContext('2d');
+const flCanvas = document.getElementById('flower-canvas');
+const flCtx    = flCanvas.getContext('2d');
+const ptCanvas = document.getElementById('particle-canvas');
+const ptCtx    = ptCanvas.getContext('2d');
+
+function setCanvasSizes() {
+  W = window.innerWidth; H = window.innerHeight;
+  [bgCanvas, flCanvas, ptCanvas].forEach(c => { c.width = W; c.height = H; });
+}
+setCanvasSizes();
+window.addEventListener('resize', () => { setCanvasSizes(); if(launched){buildFlowers();buildParticles();} });
+
+/* ── PHOTO UPLOAD → show caption inputs ──── */
+document.getElementById('photo-input').addEventListener('change', e => {
+  const files = [...e.target.files];
+  photos = [];
+  const captionInputs = document.getElementById('caption-inputs');
+  const captionSection = document.getElementById('caption-section');
+  captionInputs.innerHTML = '';
+
+  if (!files.length) { captionSection.style.display='none'; return; }
+
+  let loaded = 0;
+  files.forEach((f, idx) => {
+    const r = new FileReader();
+    r.onload = ev => {
+      const src = ev.target.result;
+      photos.push({ src, caption: '' });
+      loaded++;
+      document.getElementById('photo-label').textContent =
+        `✦ ${loaded} foto dipilih ✦`;
+
+      // Build caption row
+      const row = document.createElement('div');
+      row.className = 'caption-row';
+
+      const thumb = document.createElement('img');
+      thumb.className = 'photo-thumb';
+      thumb.src = src;
+
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = `Caption foto ${idx+1}…`;
+      inp.maxLength = 40;
+      inp.dataset.idx = idx;
+      inp.addEventListener('input', () => {
+        photos[idx].caption = inp.value;
+      });
+
+      row.appendChild(thumb);
+      row.appendChild(inp);
+      captionInputs.appendChild(row);
+
+      if (loaded === files.length) {
+        captionSection.style.display = 'block';
+      }
+    };
+    r.readAsDataURL(f);
+  });
+});
+
+/* ── LAUNCH ───────────────────────────────── */
+document.getElementById('launch-btn').addEventListener('click', () => {
+  const from = document.getElementById('inp-from').value.trim() || 'Someone special';
+  const forr = document.getElementById('inp-for').value.trim()  || 'You';
+  const note = document.getElementById('inp-note').value.trim() ||
+    'I made this little garden for every moment I wanted to say more than words could hold.';
+
+  document.getElementById('nc-from').textContent = from;
+  document.getElementById('nc-for').textContent  = forr;
+  document.getElementById('nc-note').textContent  = note;
+
+  const card = document.getElementById('upload-card');
+  card.style.opacity = '0';
+  card.style.transform = 'translate(-50%,-50%) scale(0.9)';
+  setTimeout(() => { card.style.display='none'; }, 600);
+  setTimeout(() => { document.getElementById('note-card').classList.add('visible'); }, 700);
+
+  launched = true;
+  buildWorld();
+  buildFlowers();
+  buildParticles();
+  loop();
+});
+
+/* ── LOVE TEXTS ───────────────────────────── */
+const LOVE_TEXTS = [
+  'I Love You','Always Together','Forever & Always',
+  'You Are My Favorite Person','Missing You',
+  'Best Memory','Love u so much','My Heart','Always',
+  'Together Always','I love you so much','My everything',
+  'Forever Yours','In My Heart','Always & Forever'
+];
+
+/* ── BUILD WORLD ──────────────────────────── */
+function buildWorld() {
+  world.querySelectorAll('.mem-wrap,.float-text').forEach(el => el.remove());
+  const SPREAD = 1600;
+
+  // Floating texts
+  const textCount = 40 + Math.floor(Math.random() * 20);
+  for (let i = 0; i < textCount; i++) {
+    const el = document.createElement('div');
+    el.className = 'float-text';
+    el.textContent = LOVE_TEXTS[Math.floor(Math.random() * LOVE_TEXTS.length)];
+    const fs = 18 + Math.random() * 36;
+    el.style.cssText = `
+      left:${(Math.random()-0.5)*SPREAD*2 + W/2}px;
+      top:${(Math.random()-0.5)*SPREAD*2 + H/2}px;
+      font-size:${fs}px;
+      --dur:${7+Math.random()*9}s;
+      --delay:${Math.random()*8}s;
+      --fdur:${5+Math.random()*8}s;
+      --fdelay:${Math.random()*6}s;
+      --maxalpha:${0.4+Math.random()*0.55};
+      opacity:0;
+    `;
+    if (Math.random() < 0.3) {
+      el.style.color = '#c86bff';
+      el.style.textShadow = '0 0 8px #c86bff,0 0 20px rgba(200,107,255,0.6)';
+    }
+    world.appendChild(el);
+  }
+
+  // Memory cards
+  if (photos.length === 0) {
+    // Placeholders with default captions
+    const defaultCaptions = ['Always Together','I Love You','My Heart','Best Memory',
+      'Forever Yours','Missing You','Always','My Everything'];
+    for (let i = 0; i < 8; i++) addCard(null, i, SPREAD, defaultCaptions[i]);
+  } else {
+    photos.forEach((p, i) => addCard(p.src, i, SPREAD, p.caption));
+    if (photos.length < 8) {
+      const extra = Math.ceil(8 / photos.length);
+      for (let r = 1; r < extra; r++) {
+        photos.forEach((p, i) => addCard(p.src, i + r * photos.length, SPREAD, p.caption));
+      }
+    }
+  }
+}
+
+function addCard(src, idx, SPREAD, caption) {
+  // Wrapper div (floats together with caption)
+  const wrap = document.createElement('div');
+  wrap.className = 'mem-wrap';
+  const rot   = (Math.random()-0.5) * 14;
+  const dur   = 7 + Math.random() * 8;
+  const delay = Math.random() * 6;
+  const cardW = 110 + Math.random() * 60;
+  const cardH = 110 + Math.random() * 60;
+
+  wrap.style.cssText = `
+    left:${(Math.random()-0.5)*SPREAD*2.2 + W/2 - cardW/2}px;
+    top:${(Math.random()-0.5)*SPREAD*1.8 + H/2 - cardH/2}px;
+    --rot:${rot}deg;
+    --dur:${dur}s;
+    --delay:${-delay}s;
+    width:${cardW}px;
+  `;
+
+  // Card image box
+  const card = document.createElement('div');
+  card.className = 'mem-card';
+  card.style.height = `${cardH}px`;
+
+  if (src) {
+    const img = document.createElement('img');
+    img.src = src; img.draggable = false;
+    card.appendChild(img);
+  } else {
+    const hue = [330,280,0,310,200,160,50,90][idx%8];
+    card.style.background =
+      `linear-gradient(135deg, hsl(${hue},80%,15%), hsl(${hue+20},80%,8%))`;
+  }
+  wrap.appendChild(card);
+
+  // Caption below card
+  const cap = document.createElement('div');
+  cap.className = 'mem-caption';
+  // Use provided caption, or random love text as fallback
+  cap.textContent = (caption && caption.trim())
+    ? caption.trim()
+    : LOVE_TEXTS[Math.floor(Math.random() * LOVE_TEXTS.length)];
+  // Slightly vary font size
+  cap.style.fontSize = (16 + Math.random() * 8) + 'px';
+  wrap.appendChild(cap);
+
+  world.appendChild(wrap);
+}
+
+/* ── FLOWER SYSTEM ────────────────────────── */
+const FLOWER_COUNT = 200;
+let flowers = [];
+
+const FLOWER_TYPES = [
+  { draw: drawSakura, color: ['#ffb6d9','#ff80bc','#ff4fa0','#ffd6e8'] },
+  { draw: drawDaisy,  color: ['#ffffff','#f0f0f0','#ffe0f0','#fff5fa'] },
+  { draw: drawDaisy,  color: ['#c86bff','#a040e0','#e0a0ff','#8b00ff'] },
+  { draw: drawSmall,  color: ['#ff3366','#cc0033','#ff6688','#aa0022'] },
+];
+
+function drawSakura(ctx, x, y, r, rot, alpha) {
+  ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.globalAlpha=alpha;
+  for (let i=0;i<5;i++) {
+    ctx.save(); ctx.rotate((i*Math.PI*2)/5);
+    ctx.beginPath(); ctx.ellipse(0,-r*.6,r*.38,r*.62,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+}
+function drawDaisy(ctx, x, y, r, rot, alpha) {
+  ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.globalAlpha=alpha;
+  for (let i=0;i<8;i++) {
+    ctx.save(); ctx.rotate((i*Math.PI*2)/8);
+    ctx.beginPath(); ctx.ellipse(0,-r*.55,r*.25,r*.55,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  ctx.globalAlpha=alpha;
+  ctx.beginPath(); ctx.arc(0,0,r*.22,0,Math.PI*2);
+  ctx.fillStyle='#ffe066'; ctx.fill(); ctx.restore();
+}
+function drawSmall(ctx, x, y, r, rot, alpha) {
+  ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.globalAlpha=alpha;
+  for (let i=0;i<5;i++) {
+    ctx.save(); ctx.rotate((i*Math.PI*2)/5);
+    ctx.beginPath(); ctx.ellipse(0,-r*.5,r*.28,r*.5,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+}
+
+class Flower {
+  constructor(cold) { this.reset(cold); }
+  reset(cold=false) {
+    this.type  = FLOWER_TYPES[Math.floor(Math.random()*FLOWER_TYPES.length)];
+    this.color = this.type.color[Math.floor(Math.random()*this.type.color.length)];
+    this.x = Math.random()*W;
+    this.y = cold ? Math.random()*H : -20;
+    this.r = 5+Math.random()*14;
+    this.rot=Math.random()*Math.PI*2;
+    this.rotSpd=(Math.random()-.5)*.06;
+    this.vy=.4+Math.random()*1.4;
+    this.vx=(Math.random()-.5)*.8;
+    this.sway=Math.random()*Math.PI*2;
+    this.swaySpd=.01+Math.random()*.02;
+    this.swayAmp=.4+Math.random()*1.2;
+    this.alpha=.5+Math.random()*.5;
+    this.depth=Math.random();
+  }
+  update() {
+    this.sway+=this.swaySpd;
+    this.x+=this.vx+Math.sin(this.sway)*this.swayAmp;
+    this.y+=this.vy; this.rot+=this.rotSpd;
+    if(this.y>H+30) this.reset(false);
+  }
+  draw(ctx) {
+    ctx.fillStyle=this.color;
+    const scale=.4+this.depth*.6;
+    const alph=(.3+this.depth*.6)*this.alpha;
+    this.type.draw(ctx,this.x,this.y,this.r*scale,this.rot,alph);
+  }
+}
+function buildFlowers() { flowers=Array.from({length:FLOWER_COUNT},()=>new Flower(true)); }
+
+/* ── PARTICLE SYSTEM ──────────────────────── */
+const PARTICLE_COUNT = 500;
+let particles = [];
+
+class Particle {
+  constructor(cold) { this.reset(cold); }
+  reset(cold=false) {
+    this.x=Math.random()*W;
+    this.y=cold?Math.random()*H:H+5;
+    this.r=.5+Math.random()*2.5;
+    this.vy=-((.2+Math.random()*.9));
+    this.vx=(Math.random()-.5)*.5;
+    this.life=.6+Math.random()*.4;
+    this.alpha=cold?Math.random()*this.life:0;
+    this.decay=.001+Math.random()*.003;
+    const roll=Math.random();
+    this.color=roll<.5?'#ff4fd8':roll<.8?'#c86bff':'#ffffff';
+  }
+  update() {
+    this.x+=this.vx; this.y+=this.vy;
+    this.alpha-=this.decay;
+    if(this.alpha<=0||this.y<-10) this.reset();
+  }
+  draw(ctx) {
+    if(this.alpha<=0) return;
+    ctx.save(); ctx.globalAlpha=this.alpha;
+    ctx.shadowBlur=8; ctx.shadowColor=this.color;
+    ctx.fillStyle=this.color;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+function buildParticles() { particles=Array.from({length:PARTICLE_COUNT},()=>new Particle(true)); }
+
+/* ── BG ───────────────────────────────────── */
+let bgT=0;
+function drawBg() {
+  bgT+=.004; bgCtx.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2;
+  const r1=Math.min(W,H)*(.35+Math.sin(bgT)*.05);
+  const g1=bgCtx.createRadialGradient(cx,cy,0,cx,cy,r1);
+  g1.addColorStop(0,'rgba(255,79,216,0.06)');
+  g1.addColorStop(.5,'rgba(200,107,255,0.03)');
+  g1.addColorStop(1,'rgba(0,0,0,0)');
+  bgCtx.fillStyle=g1; bgCtx.fillRect(0,0,W,H);
+}
+
+/* ── MAIN LOOP ────────────────────────────── */
+function loop() {
+  requestAnimationFrame(loop);
+  if(!launched) return;
+  bgCtx.clearRect(0,0,W,H); drawBg();
+  flCtx.clearRect(0,0,W,H); flowers.forEach(f=>{f.update();f.draw(flCtx);});
+  ptCtx.clearRect(0,0,W,H); particles.forEach(p=>{p.update();p.draw(ptCtx);});
+  world.style.transform=`translate(${worldX}px,${worldY}px) scale(${zoom})`;
+  zoomHud.textContent=`ZOOM ${zoom.toFixed(1)}×`;
+}
+
+/* ── PAN & ZOOM ───────────────────────────── */
+let isDragging=false, dragStartX=0, dragStartY=0;
+let velX=0, velY=0, lastMoveX=0, lastMoveY=0, inertiaRaf=null;
+
+document.addEventListener('mousedown',e=>{
+  if(e.target.closest('#upload-card,#note-card,#info-badge,#zoom-hud')) return;
+  isDragging=true; document.body.classList.add('grabbing');
+  dragStartX=e.clientX-worldX; dragStartY=e.clientY-worldY;
+  lastMoveX=e.clientX; lastMoveY=e.clientY;
+  velX=velY=0; if(inertiaRaf) cancelAnimationFrame(inertiaRaf);
+});
+document.addEventListener('mousemove',e=>{
+  if(!isDragging) return;
+  velX=e.clientX-lastMoveX; velY=e.clientY-lastMoveY;
+  lastMoveX=e.clientX; lastMoveY=e.clientY;
+  worldX=e.clientX-dragStartX; worldY=e.clientY-dragStartY;
+});
+document.addEventListener('mouseup',()=>{
+  if(!isDragging) return;
+  isDragging=false; document.body.classList.remove('grabbing'); startInertia();
+});
+function startInertia() {
+  function step() {
+    velX*=.92; velY*=.92; worldX+=velX; worldY+=velY;
+    if(Math.abs(velX)>.2||Math.abs(velY)>.2) inertiaRaf=requestAnimationFrame(step);
+  }
+  inertiaRaf=requestAnimationFrame(step);
+}
+document.addEventListener('wheel',e=>{
+  e.preventDefault();
+  applyZoom(e.deltaY>0?.9:1.1, e.clientX, e.clientY);
+},{passive:false});
+function applyZoom(factor,cx,cy) {
+  const nz=Math.min(MAX_ZOOM,Math.max(MIN_ZOOM,zoom*factor));
+  const ratio=nz/zoom;
+  worldX=cx+(worldX-cx)*ratio; worldY=cy+(worldY-cy)*ratio; zoom=nz;
+}
+
+let touches={}, lastPinchDist=null, touchStartX=0, touchStartY=0;
+document.addEventListener('touchstart',e=>{
+  [...e.touches].forEach(t=>touches[t.identifier]={x:t.clientX,y:t.clientY});
+  if(e.touches.length===1){
+    touchStartX=e.touches[0].clientX-worldX; touchStartY=e.touches[0].clientY-worldY;
+    if(inertiaRaf) cancelAnimationFrame(inertiaRaf);
+  }
+  if(e.touches.length===2) lastPinchDist=getPinchDist(e.touches);
+},{passive:false});
+document.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){
+    worldX=e.touches[0].clientX-touchStartX; worldY=e.touches[0].clientY-touchStartY;
+  }
+  if(e.touches.length===2){
+    const d=getPinchDist(e.touches);
+    if(lastPinchDist){
+      const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      applyZoom(d/lastPinchDist,cx,cy);
+    }
+    lastPinchDist=d;
+  }
+},{passive:false});
+document.addEventListener('touchend',e=>{
+  [...e.changedTouches].forEach(t=>delete touches[t.identifier]);
+  lastPinchDist=null;
+  if(e.touches.length===0) startInertia();
+});
+function getPinchDist(t){
+  const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+</script>
+</body>
+</html>
